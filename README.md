@@ -1,8 +1,2 @@
 general:</br>
-aixi is a set of store library.</br>
-</br>
-aixi-mysqlconnectionpool:</br>
-aixi-mysqlconnectionpool is a light weight and flexible mysql connection pool.</br>
-</br>
-aixi-orm:</br>
-aixi-orm is a light weight and flexible orm library base on mysql.
+aixi is a set of store library,it is light weight and flexible and simple to use.now there are two libary in here ,it is aixi-mysqlconntionpool and aixi-orm</br>
