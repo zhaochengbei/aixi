@@ -7,7 +7,7 @@ import store.aixi.mysqlorm.Table;
 
 /**
  * author: mysqlorm
- * date: Thu Aug 24 10:15:31 CST 2017
+ * date: Thu Aug 24 16:22:42 CST 2017
  */
 public class TestRecord extends Record {
 	/**
@@ -21,29 +21,39 @@ public class TestRecord extends Record {
 		if(table == null){
 			table = new Table();
 			table.name = "t_test";
-			table.columns = new Column[2];
+			table.columns = new Column[3];
 			Column column = new Column();
 			column.name = "id";
 			column.columnType = "bigint(20)";
 			column.charset = null;
 			column.collate = null;
-			column.nullAble = false;
+			column.nullAble = true;
 			column.defaultValue = null;
 			column.autoIncrement = false;
 			column.comment = null;
 			table.columns[0] = column;
 			column = new Column();
-			column.name = "name";
+			column.name = " name";
 			column.columnType = "varchar(50)";
 			column.charset = null;
 			column.collate = "utf8_bin";
-			column.nullAble = true;
+			column.nullAble = false;
 			column.defaultValue = null;
 			column.autoIncrement = false;
 			column.comment = null;
 			table.columns[1] = column;
+			column = new Column();
+			column.name = "name";
+			column.columnType = "varchar(50)";
+			column.charset = null;
+			column.collate = "utf8_bin";
+			column.nullAble = false;
+			column.defaultValue = null;
+			column.autoIncrement = false;
+			column.comment = null;
+			table.columns[2] = column;
 			table.primaryKeys = new String[1];
-			table.primaryKeys[0] = "id";
+			table.primaryKeys[0] = "name";
 			table.keys = new Key[1];
 			Key key = new Key();
 			key.name = "name";

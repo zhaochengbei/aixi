@@ -3,18 +3,13 @@ package store.aixi.mysqlorm;
 import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
-import java.sql.PreparedStatement;
 import java.sql.ResultSet;
-import java.sql.ResultSetMetaData;
 import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
-import java.util.Properties;
-
-import javax.swing.plaf.metal.MetalBorders.TableHeaderBorder;
 
 import store.aixi.mysqlconnectionpool.MysqlConnection;
 import store.aixi.mysqlconnectionpool.MysqlConnectionPool;
@@ -113,6 +108,26 @@ public class MysqlORM {
 					}
 					mysqlConnection.update(modifySql);
 				}
+				//主键会妨碍修改栏目，所以要先处理；
+				//检查主键是否完全相等；
+				boolean primaryKeyEquals = true;
+				if(table.primaryKeys.length != tableInDB.primaryKeys.length){
+					primaryKeyEquals = false;
+				}else{
+					for (int j = 0; j < table.primaryKeys.length; j++) {
+						if(table.primaryKeys[j].equals(tableInDB.primaryKeys[j]) == false){
+							primaryKeyEquals = false;
+						}
+					}
+				}
+				if(primaryKeyEquals == false){
+					//如果之前存在;
+					if(tableInDB.primaryKeys.length !=0){
+						String primarySql = "ALTER TABLE `"+table.name+"` DROP PRIMARY KEY;";
+						mysqlConnection.update(primarySql);
+					}
+				}
+				
 				//遍历栏目，如果栏目有变化，修改栏目；
 				Map<String, Column> columnsInDBTable = new HashMap<String, Column>();
 				for (int j = 0; j < tableInDB.columns.length; j++) {
@@ -140,25 +155,12 @@ public class MysqlORM {
 						}
 					}
 				}
-				//检查主键是否完全相等；
-				boolean primaryKeyEquals = true;
-				if(table.primaryKeys.length != tableInDB.primaryKeys.length){
-					primaryKeyEquals = false;
-				}else{
-					for (int j = 0; j < table.primaryKeys.length; j++) {
-						if(table.primaryKeys[j].equals(tableInDB.primaryKeys[j]) == false){
-							primaryKeyEquals = false;
-						}
-					}
-				}
 				if(primaryKeyEquals == false){
-					String primarySql = "ALTER TABLE `"+table.name+"` DROP PRIMARY KEY;";
-					mysqlConnection.query(primarySql);
 					StringBuilder stringBuilder = new StringBuilder();
 					stringBuilder.append("ALTER TABLE `"+table.name +"` ADD ");
 					TableSqlCodeBuilder.addPrimaryKeySql(stringBuilder, table.primaryKeys);
 					stringBuilder.append(";");
-					mysqlConnection.update(primarySql);
+					mysqlConnection.update(stringBuilder.toString());
 				}
 				//遍历每个key，如果现在没有对应的key创建，如果有修改;
 				Map<String, Key> keysInDBTable = new HashMap<String, Key>();
@@ -224,7 +226,7 @@ public class MysqlORM {
 	 * @throws TableParseException 
 	 * 
 	 */
-	public void generateRecordClassAccessDBStructs() throws IOException, MysqlConnectionPoolException, ClassNotFoundException, SQLException, TableParseException{
+	public void generateRecordClassByDBStructs() throws IOException, MysqlConnectionPoolException, ClassNotFoundException, SQLException, TableParseException{
 		//读取表结构信息，遍历表，拿到表创建语句，根据语句生成table对象，在根据table对象生成Record类字符串；然后保存；
 		MysqlConnection mysqlConnection = this.mysqlConnectionPool.getNotInUseConnection();
 		//查询表；
@@ -257,33 +259,7 @@ public class MysqlORM {
 		resultSet.close();
 		mysqlConnectionPool.laybackConncetion(mysqlConnection);
 	}
-	
-	/**
-	 * 
-	 */
-	public List<Object> getPrimaryKeyValuesBySql(String sql){
-		return null;
-	}
-	/**
-	 * 
-	 * @param entityClass
-	 * @param primaryKeyValues
-	 */
-	public Record getEntityByPrimaryKeyValues(Class<? extends Record> entityClass,String[] primaryKeyValues){
-		return null;
-	}
-	/**
-	 * 
-	 */
-	public List<? extends Record> getRecordByPrimaryKeyValues(Class<? extends Record> entityClass,String[] primaryKeyValues){
-		return null;
-	}
-	/**
-	 * 
-	 */
-	public List<? extends Record> resultSetToRecordList(ResultSet resultSet){
-		return null;
-	}
+
 	/**
 	 * 
 	 */
@@ -296,4 +272,44 @@ public class MysqlORM {
 	public void updateRecord(Record record){
 		
 	}
+	/**
+	 * 
+	 */
+	public <T extends Record> T getRecordByPrimaryKeyValues(String[] primaryKeyValues,T recordClass){
+		//内部使用getRecordsBySql函数实现；
+		return null;
+	}
+	/**
+	 * 
+	 */
+	public <T extends Record> T getRecordsByPrimaryKeyPartValues(String[] primaryKeyPartValues,T recordClass){
+		//内部使用getRecordBySql函数实现；
+		return null;
+	}
+	/**
+	 * 
+	 */
+	public <T extends Record> T getRecordBySql(String sql,T recordClass){
+		//内部使用getRecordsBySql函数实现；
+		return null;
+	}
+	/**
+	 * 
+	 */
+	public <T extends Record> T getRecordsBySql(String sql,T recordClass){
+		return null;
+	}
+	/**
+	 * 
+	 */
+	private List<? extends Record> resultSetToRecordList(ResultSet resultSet){
+		return null;
+	}
+	//如果只使用这个库，是不会有这个需求的；
+//	/**
+//	 * 
+//	 */
+//	public List<String[]> getPrimaryKeyValuesBySql(String sql){
+//		return null;
+//	}
 }

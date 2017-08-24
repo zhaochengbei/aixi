@@ -223,7 +223,7 @@ public class TableSqlCodeBuilder {
 						parsePhase = TableParseObjectPhase.WAIT_END;
 					}
 				}else{
-					if(c == ' '||i==sql.length()-1){
+					if(c == ' '||c== ',' || c== '\n'||i==sql.length()-1){
 						if(i==sql.length()-1){
 							bufferArea.append(c);
 						}
@@ -450,17 +450,6 @@ public class TableSqlCodeBuilder {
 		if(table.primaryKeys.length>0){
 			//添加主键
 			stringBuilder.append(",\n  ");
-//			for (int j = 0; j < table.primaryKeys.length; j++) {
-//				String primaryKey = table.primaryKeys[j];
-//				stringBuilder.append("`");
-//				stringBuilder.append(primaryKey);
-//				stringBuilder.append("`");
-//				//如果还有后续；
-//				if(j +1 <table.primaryKeys.length){
-//					stringBuilder.append(",");
-//				}
-//			}	
-//			stringBuilder.append(")");
 			addPrimaryKeySql(stringBuilder, table.primaryKeys);
 		}
 		
@@ -471,18 +460,6 @@ public class TableSqlCodeBuilder {
 				Key key = table.keys[i];
 				stringBuilder.append("KEY ");
 				addKeySql(stringBuilder, key);
-//				stringBuilder.append("`");
-//				stringBuilder.append(key.name);
-//				stringBuilder.append("` (");
-//				for (int j = 0; j < key.fields.length; j++) {
-//					if(j!=0){
-//						stringBuilder.append(",");
-//					}
-//					stringBuilder.append("`");
-//					stringBuilder.append(key.name);
-//					stringBuilder.append("`");
-//				}
-//				stringBuilder.append(")");
 			}
 		}
 		stringBuilder.append("\n) ENGINE=");
@@ -503,7 +480,7 @@ public class TableSqlCodeBuilder {
 		return stringBuilder.toString();
 	}
 	static public void addColumnSql(StringBuilder stringBuilder,Column column){
-		stringBuilder.append("` ");
+		stringBuilder.append("`");
 		stringBuilder.append(column.name);
 		stringBuilder.append("` ");
 		stringBuilder.append(column.columnType);
@@ -556,7 +533,7 @@ public class TableSqlCodeBuilder {
 				stringBuilder.append(",");
 			}
 			stringBuilder.append("`");
-			stringBuilder.append(key.name);
+			stringBuilder.append(key.fields[j]);
 			stringBuilder.append("`");
 		}
 		stringBuilder.append(")");
