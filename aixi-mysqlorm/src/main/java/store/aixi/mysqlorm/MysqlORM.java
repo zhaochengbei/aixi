@@ -175,7 +175,9 @@ public class MysqlORM {
 					}else{
 						Key keyInDBTable = keysInDBTable.get(key.name);
 						boolean keyEquals = true;
-						if(key.fields.length != keyInDBTable.fields.length){
+						if(key.keyType.equals(keyInDBTable.keyType) == false||key.indexMethod.equals(keyInDBTable.indexMethod) == false){
+							keyEquals = false;
+						}else if(key.fields.length != keyInDBTable.fields.length){
 							keyEquals = false;
 						}else{
 							for (int k = 0; k < key.fields.length; k++) {
@@ -213,7 +215,7 @@ public class MysqlORM {
 	private String generateAddKeySql(Table table,Key key){
 
 		StringBuilder stringBuilder = new StringBuilder();
-		stringBuilder.append("ALTER TABLE `"+table.name +"` ADD INDEX ");
+		stringBuilder.append("ALTER TABLE `"+table.name +"` ADD ");
 		TableSqlCodeBuilder.addKeySql(stringBuilder, key);
 		stringBuilder.append(";");
 		return stringBuilder.toString();

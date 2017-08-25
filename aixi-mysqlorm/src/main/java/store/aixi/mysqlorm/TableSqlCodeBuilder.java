@@ -7,6 +7,8 @@ import java.util.Stack;
 
 import javax.print.attribute.standard.PrinterMakeAndModel;
 
+import com.mysql.jdbc.Blob;
+
 /**
  * author：zhaochengbei
  * date：2017/8/17
@@ -99,13 +101,30 @@ public class TableSqlCodeBuilder {
 					parseObjectStack.push(TableParseObject.NAME);
 					parsePhase = TableParseObjectPhase.WAIT_END;
 				}
-				if(c == 'P'){
+				if(c =='P'){
 					parseObjectStack.push(TableParseObject.PRIMARY_KEY);
 					parsePhase = TableParseObjectPhase.WAIT_START;
 				}
 				if(c == 'K'){
 					parseObjectStack.push(TableParseObject.KEY);
 					key = new Key();
+					key.keyType = "KEY";
+					keys.add(key);
+					parseObjectStack.push(TableParseObject.NAME);
+					parsePhase = TableParseObjectPhase.WAIT_START;
+				}
+				if(c == 'U'){
+					parseObjectStack.push(TableParseObject.KEY);
+					key = new Key();
+					key.keyType = "UNIQUE KEY";
+					keys.add(key);
+					parseObjectStack.push(TableParseObject.NAME);
+					parsePhase = TableParseObjectPhase.WAIT_START;
+				}
+				if(c == 'F'){
+					parseObjectStack.push(TableParseObject.KEY);
+					key = new Key();
+					key.keyType = "FULLTEXT";
 					keys.add(key);
 					parseObjectStack.push(TableParseObject.NAME);
 					parsePhase = TableParseObjectPhase.WAIT_START;
@@ -258,7 +277,7 @@ public class TableSqlCodeBuilder {
 							column.nullAble = true;
 							parseObjectStack.pop();
 						}else if(defaultValue.charAt(0) == '\''&& defaultValue.charAt(defaultValue.length()-1) == '\''){
-							column.defaultValue = defaultValue.substring(1,defaultValue.length()-2);
+							column.defaultValue = defaultValue.substring(1,defaultValue.length()-1);
 							parseObjectStack.pop();
 						}else{
 							throw new TableParseException(TableParseException.UNKOWN);
@@ -322,12 +341,17 @@ public class TableSqlCodeBuilder {
 					if(c == '`'){
 						parsePhase = TableParseObjectPhase.WAIT_END;
 					}
+					
 					if(c == ')'){
 						//字段列表解析结束；
 						key.fields = fieldInKey.toArray(new String[0]);
-						//返回上上级；
+						//开始读取使用的检索类型;
 						parseObjectStack.pop();
-						parseObjectStack.pop();
+						parseObjectStack.push(TableParseObject.KEY_INDEX_METHOD);
+						parsePhase = TableParseObjectPhase.WAIT_START;
+//						//返回上上级；
+//						parseObjectStack.pop();
+//						parseObjectStack.pop();
 					}
 				
 				}else{
@@ -342,6 +366,31 @@ public class TableSqlCodeBuilder {
 					}
 				}
 				break;
+			case TableParseObject.KEY_INDEX_METHOD:
+				if(parsePhase == TableParseObjectPhase.WAIT_START){
+					if(c == ' '){
+						parsePhase = TableParseObjectPhase.WAIT_END;
+					}
+					//未发现可以索引方法；
+					if(c == '\n'){
+						//返回上上级；
+						parseObjectStack.pop();
+						parseObjectStack.pop();
+					}
+				
+				}else{
+					if(c == ','||c=='\n'){
+						String indexMethod = bufferArea.toString();
+						bufferArea.delete(0, bufferArea.length());
+						//如果是using，清空缓冲区；
+						key.indexMethod = indexMethod.split(" ")[1];
+						parseObjectStack.pop();
+						parseObjectStack.pop();
+					}else{
+						bufferArea.append(c);
+					}
+				}
+				break;	
 			case TableParseObject.TABLE_ATT:
 				if(parsePhase == TableParseObjectPhase.WAIT_START){
 					if(c == ' '){
@@ -458,7 +507,6 @@ public class TableSqlCodeBuilder {
 			for (int i = 0; i < table.keys.length; i++) {
 				stringBuilder.append(",\n  ");
 				Key key = table.keys[i];
-				stringBuilder.append("KEY ");
 				addKeySql(stringBuilder, key);
 			}
 		}
@@ -525,7 +573,8 @@ public class TableSqlCodeBuilder {
 		stringBuilder.append(")");
 	}
 	static public void addKeySql(StringBuilder stringBuilder,Key key){
-		stringBuilder.append("`");
+		stringBuilder.append(key.keyType);
+		stringBuilder.append(" `");
 		stringBuilder.append(key.name);
 		stringBuilder.append("` (");
 		for (int j = 0; j < key.fields.length; j++) {
@@ -536,7 +585,8 @@ public class TableSqlCodeBuilder {
 			stringBuilder.append(key.fields[j]);
 			stringBuilder.append("`");
 		}
-		stringBuilder.append(")");
+		stringBuilder.append(") USING ");
+		stringBuilder.append(key.indexMethod);
 	}
 	
 	/**
@@ -592,12 +642,14 @@ public class TableSqlCodeBuilder {
 				stringBuilder.append("Key ");
 			}
 			stringBuilder.append("key = new Key();\n");
+			stringBuilder.append("\t\t\tkey.keyType = \""+key.keyType+"\";\n");
 			stringBuilder.append("\t\t\tkey.name = \""+key.name+"\";\n");
 			stringBuilder.append("\t\t\tkey.fields = new String["+key.fields.length+"];\n");
 			for (int j = 0; j < key.fields.length; j++) {
 				String field = key.fields[j];
 				stringBuilder.append("\t\t\tkey.fields["+j+"] = \""+field+"\";\n");
 			}
+			stringBuilder.append("\t\t\tkey.indexMethod = \""+key.indexMethod+"\";\n");
 			stringBuilder.append("\t\t\ttable.keys["+i+"] = key;\n");
 		}
 		stringBuilder.append("\t\t\ttable.engine = \""+table.engine+"\";\n");
@@ -608,6 +660,81 @@ public class TableSqlCodeBuilder {
 		stringBuilder.append("\t\t}\n");
 		stringBuilder.append("\t\treturn table;\n");
 		stringBuilder.append("\t}\n");
+		//遍历column生成属性
+		for (int i = 0; i < table.columns.length; i++) {
+			Column column = table.columns[i];
+			stringBuilder.append("\t/**\n\t *\n\t */\n");
+			stringBuilder.append("\tpublic ");
+			//tinyint,smallint,mediumint,int,integer均为int;
+			String dataTypeInJava = "UnknowType";
+			if((column.columnType.indexOf("int")!=-1&&column.columnType.indexOf("bigint")==-1)||column.columnType.indexOf("integer")!=-1){
+				dataTypeInJava = "int";
+			}
+			//bigint为long；
+			if(column.columnType.indexOf("bigint")!=-1){
+				dataTypeInJava = "long";
+			}
+			//bit为boolean
+			if(column.columnType.equals("bit")){
+				dataTypeInJava = "boolean";
+			}
+			//double is double,float is float
+			if(column.columnType.equals("double")){
+				dataTypeInJava = "double";
+			}
+			if(column.columnType.equals("float")){
+				dataTypeInJava = "float";
+			}
+			//char,varchar,tinytext,text,longtext,mediumtext,为string;
+			if(column.columnType.indexOf("char")!= -1||column.columnType.indexOf("text")!=-1){
+				dataTypeInJava = "String";
+			}
+			//binary,varbinary,tinyblob,mediumblob,blob,longblob;
+			if(column.columnType.indexOf("binary")!= -1||column.columnType.indexOf("blob")!=-1){
+				dataTypeInJava = "byte[]";
+			}
+			stringBuilder.append(dataTypeInJava);
+			stringBuilder.append(" ");
+			stringBuilder.append(column.name);
+			
+			//如果有默认值；
+			
+			if(column.defaultValue != null){
+				stringBuilder.append(" = ");
+				//字符串需要增加双引号，其他的不用；
+				if(dataTypeInJava.equals("String")){
+					stringBuilder.append('"');
+				}
+				stringBuilder.append(column.defaultValue);
+				if(dataTypeInJava.equals("String")){
+					stringBuilder.append('"');
+				}
+//				Object defaultValue = null;
+//				if(dataTypeInJava.equals("int")){
+//					defaultValue = Integer.valueOf(column.defaultValue);
+//				}
+//				if(dataTypeInJava.equals("long")){
+//					defaultValue = Long.valueOf(column.defaultValue);
+//				}
+//				if(dataTypeInJava.equals("boolean")){
+//					defaultValue = Boolean.valueOf(column.defaultValue);
+//				}
+//				if(dataTypeInJava.equals("double")){
+//					defaultValue = Double.valueOf(column.defaultValue);
+//				}
+//				if(dataTypeInJava.equals("float")){
+//					defaultValue = Float.valueOf(column.defaultValue);
+//				}
+//				if(dataTypeInJava.equals("String")){
+//					defaultValue = column.defaultValue;
+//				}
+//				//byte[]统一默认值为空数组；
+//				if(dataTypeInJava.equals("byte[]")){
+//					defaultValue = "new byte[0]";
+//				}
+			}
+			stringBuilder.append(";\n");
+		}
 		stringBuilder.append("}\n");
 		return stringBuilder.toString();
 	}

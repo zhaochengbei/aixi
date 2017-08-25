@@ -4,7 +4,11 @@ package store.aixi.mysqlorm;
  * date：2017/8/17
 */
 public class Key {
-
+	
+	/**
+	 * 
+	 */
+	public String keyType;
 	/**
 	 * 
 	 */
@@ -13,4 +17,8 @@ public class Key {
 	 * 
 	 */
 	public String[] fields;
+	/**
+	 * 
+	 */
+	public String indexMethod;
 }

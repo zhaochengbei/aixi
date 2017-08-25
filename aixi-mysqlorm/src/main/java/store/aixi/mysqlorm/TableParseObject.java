@@ -20,7 +20,9 @@ public class TableParseObject {
 	static public final int COMMENT = 10;
 	static public final int PRIMARY_KEY = 11;
 	static public final int KEY = 12;
-	static public final int FIELD = 13;
-	static public final int TABLE_ATT = 14;
-	static public final int ENGINE = 15;
+	static public final int KEY_TYPE = 13;
+	static public final int FIELD = 14;
+	static public final int KEY_INDEX_METHOD = 15;
+	static public final int TABLE_ATT = 16;
+	static public final int ENGINE = 17;
 }
