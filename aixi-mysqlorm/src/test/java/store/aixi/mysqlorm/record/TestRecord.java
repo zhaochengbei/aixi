@@ -11,7 +11,7 @@ import java.sql.SQLException;
 
 /**
  * author: mysqlorm
- * date: Mon Aug 28 16:57:10 CST 2017
+ * date: Mon Aug 28 17:19:43 CST 2017
  */
 public class TestRecord extends Record {
 	/**
@@ -97,6 +97,13 @@ public class TestRecord extends Record {
 	 */
 	public String getUpdateSql(){
 		String sql="UPDATE `t_test` SET `id`='"+id+"',`name_some`='"+nameSome+"',`name`='"+name+"' WHERE `name`='"+name+"';";
+		return sql;
+	}
+	/**
+	 *
+	 */
+	public String getDeleteSql(){
+		String sql="DELETE FROM `t_test` WHERE `name`='"+name+"';";
 		return sql;
 	}
 	/**

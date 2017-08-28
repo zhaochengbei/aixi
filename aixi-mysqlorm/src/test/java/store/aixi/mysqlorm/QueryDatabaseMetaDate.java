@@ -7,14 +7,14 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 
 
-public class DatabaseMetaDateApplication {
+public class QueryDatabaseMetaDate {
 
 
 	private DatabaseMetaData dbMetaData = null;
 	private Connection con = null;
 
 
-	public DatabaseMetaDateApplication() {
+	public QueryDatabaseMetaDate() {
 		this.getDatabaseMetaData();
 	}
 
@@ -288,7 +288,7 @@ public class DatabaseMetaDateApplication {
 
 
 	public static void main(String[] args) {
-		DatabaseMetaDateApplication metaData = new DatabaseMetaDateApplication();
+		QueryDatabaseMetaDate metaData = new QueryDatabaseMetaDate();
 //		metaData.getDataBaseInformations();
 		metaData.getAllTableList(null);
 //		metaData.getAllViewList(null);

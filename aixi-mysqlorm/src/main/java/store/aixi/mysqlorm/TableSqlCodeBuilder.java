@@ -778,7 +778,28 @@ public class TableSqlCodeBuilder {
 		}
 		stringBuilder.append(";\";\n\t\treturn sql;\n");
 		stringBuilder.append("\t}\n");
-
+		
+		//getDeleteSql();
+		stringBuilder.append("\t/**\n\t *\n\t */\n");
+		stringBuilder.append("\tpublic String getDeleteSql(){\n");
+		stringBuilder.append("\t\tString sql=\"DELETE FROM `");
+		stringBuilder.append(table.name);
+		stringBuilder.append("` WHERE ");
+		for (int i = 0; i < table.primaryKeys.length; i++) {
+			String primaryKey = table.primaryKeys[i];
+			stringBuilder.append("`");
+			stringBuilder.append(primaryKey);
+			stringBuilder.append("`=");
+			stringBuilder.append("'\"+");
+			stringBuilder.append(getFieldNameByColumnName(primaryKey));
+			stringBuilder.append("+\"'");
+			if(i<table.primaryKeys.length-1){
+				stringBuilder.append(" and ");
+			}
+		}
+		stringBuilder.append(";\";\n\t\treturn sql;\n");
+		stringBuilder.append("\t}\n");
+		
 		//initValue()
 		stringBuilder.append("\t/**\n\t *\n\t */\n");
 		stringBuilder.append("\tpublic void initValue(ResultSet resultSet) throws SQLException{");
@@ -841,6 +862,8 @@ public class TableSqlCodeBuilder {
 		}
 		stringBuilder.append("]\";\n\t\treturn str;");
 		stringBuilder.append("\n\t}\n");
+		
+		
 		stringBuilder.append("}\n");
 		return stringBuilder.toString();
 	}

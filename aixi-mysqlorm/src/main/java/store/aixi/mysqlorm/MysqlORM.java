@@ -297,6 +297,15 @@ public class MysqlORM {
 
 	}
 	/**
+	 * 
+	 */
+	public void deleteRecord(Record record) throws IOException, MysqlConnectionPoolException, ClassNotFoundException, SQLException{
+		String sql = record.getDeleteSql();
+		MysqlConnection mysqlConnection = mysqlConnectionPool.getNotInUseConnection();
+		mysqlConnection.update(sql);
+		mysqlConnectionPool.laybackConncetion(mysqlConnection);
+	}
+	/**
 	 * @throws MysqlORMException 
 	 * @throws IllegalAccessException 
 	 * @throws InstantiationException 

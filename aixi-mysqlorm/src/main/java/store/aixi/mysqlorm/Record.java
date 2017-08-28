@@ -29,6 +29,14 @@ public abstract class Record {
 	abstract public String getUpdateSql();
 	/**
 	 * 
+	 * @return
+	 */
+	public String getDeleteSql(){
+		return null;
+	}
+	
+	/**
+	 * 
 	 */
 	abstract public void initValue(ResultSet resultSet) throws SQLException;
 }
