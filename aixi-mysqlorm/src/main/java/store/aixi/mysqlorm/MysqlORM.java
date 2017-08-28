@@ -19,7 +19,7 @@ import store.aixi.mysqlconnectionpool.MysqlConnectionPoolException;
  * author：zhaochengbei
  * date：2017/8/14
 */
-public class  MysqlORM <T extends Record> {
+public class MysqlORM {
 
 	/**
 	 * 
@@ -36,7 +36,7 @@ public class  MysqlORM <T extends Record> {
 	/**
 	 * 
 	 */
-	private Map<Class<T>, T> classToInstance = new HashMap<Class<T>, T>();
+	private Map<Class<? extends Record>, Table> classToInstance = new HashMap<Class<? extends Record>, Table>();
 	/**
 	 * 
 	 */
@@ -275,9 +275,11 @@ public class  MysqlORM <T extends Record> {
 	 */
 	public void insertRecord(Record record) throws IOException, MysqlConnectionPoolException, ClassNotFoundException, SQLException{
 		//使用record生成插入语句；//生成代码的方式效率最高；
-		String sql = "";
+		String sql = record.getInsertSql();
 		MysqlConnection mysqlConnection = mysqlConnectionPool.getNotInUseConnection();
 		mysqlConnection.update(sql);
+		mysqlConnectionPool.laybackConncetion(mysqlConnection);
+
 	}
 	/**
 	 * @throws MysqlConnectionPoolException 
@@ -288,64 +290,128 @@ public class  MysqlORM <T extends Record> {
 	 */
 	public void updateRecord(Record record) throws IOException, MysqlConnectionPoolException, ClassNotFoundException, SQLException{
 		//同上；//
-		String sql = "";
+		String sql = record.getUpdateSql();
 		MysqlConnection mysqlConnection = mysqlConnectionPool.getNotInUseConnection();
 		mysqlConnection.update(sql);
+		mysqlConnectionPool.laybackConncetion(mysqlConnection);
+
 	}
 	/**
+	 * @throws MysqlORMException 
+	 * @throws IllegalAccessException 
+	 * @throws InstantiationException 
+	 * @throws SQLException 
+	 * @throws MysqlConnectionPoolException 
+	 * @throws IOException 
+	 * @throws ClassNotFoundException 
 	 * 
 	 */
-	public <T extends Record> T getRecordByPrimaryKeyValues(String[] primaryKeyValues,Class<? extends T> recordClass){
+	public <T extends Record> T getRecordByPrimaryKeyValues(String[] primaryKeyValues,Class<T> recordClass) throws MysqlORMException, InstantiationException, IllegalAccessException, ClassNotFoundException, IOException, MysqlConnectionPoolException, SQLException{
 		//内部使用getRecordsByPrimaryKeyPartValues实现；
-		getRecordsByPrimaryKeyPartValues(primaryKeyValues, recordClass);
-		return null;
+		List<T> records= getRecordsByPrimaryKeyPartValues(primaryKeyValues, recordClass);
+		if(records.size()>1){
+			throw new MysqlORMException("not only one record");
+		}
+		if(records.size() == 0){
+			return null;
+		}
+		return records.get(0);
 	}
 	/**
+	 * @throws IllegalAccessException 
+	 * @throws InstantiationException 
+	 * @throws SQLException 
+	 * @throws MysqlConnectionPoolException 
+	 * @throws IOException 
+	 * @throws ClassNotFoundException 
 	 * 
 	 */
-	public <T extends Record> List<T> getRecordsByPrimaryKeyPartValues(String[] primaryKeyPartValues,Class<? extends T> recordClass){
+	public <T extends Record> List<T> getRecordsByPrimaryKeyPartValues(String[] primaryKeyPartValues,Class<T> recordClass) throws InstantiationException, IllegalAccessException, ClassNotFoundException, IOException, MysqlConnectionPoolException, SQLException{
 		//这个只能用遍历的；因为不确定传入的主键数量；
-		//内部使用getRecordsBySql函数实现；
-		
-		return null;
+		Table table = getTableByClass(recordClass);
+		StringBuilder stringBuilder = new StringBuilder();
+		stringBuilder.append("SELECT * FROM `");
+		stringBuilder.append(table.name);
+		stringBuilder.append("` WHERE ");
+		for (int i = 0; i < primaryKeyPartValues.length; i++) {
+			String primaryKey = table.primaryKeys[i];
+			stringBuilder.append("`");
+			stringBuilder.append(primaryKey);
+			stringBuilder.append("`='");
+			stringBuilder.append(primaryKeyPartValues[i]);
+			stringBuilder.append("'");
+			//如果后面还有；
+			if(i<primaryKeyPartValues.length-1){
+				stringBuilder.append(" and ");
+			}
+		}
+		stringBuilder.append(";");
+		List<T> records = getRecordsBySql(stringBuilder.toString(), recordClass);
+		return records;
 	}
 	/**
 	 * @throws IllegalAccessException 
 	 * @throws InstantiationException 
 	 * 
 	 */
-	public T getInstanceByClass(Class<T> recordClass) throws InstantiationException, IllegalAccessException{
+	private <T extends Record>  Table getTableByClass(Class<T> recordClass) throws InstantiationException, IllegalAccessException{
 		if(classToInstance.containsKey(recordClass) == false){
-			classToInstance.put(recordClass, recordClass.newInstance());
+			classToInstance.put(recordClass, recordClass.newInstance().getTable());
 		}
 		return classToInstance.get(recordClass);
 	}
 	/**
+	 * @throws MysqlORMException 
+	 * @throws SQLException 
+	 * @throws MysqlConnectionPoolException 
+	 * @throws IOException 
+	 * @throws IllegalAccessException 
+	 * @throws InstantiationException 
+	 * @throws ClassNotFoundException 
 	 * 
 	 */
-	public T getRecordBySql(String sql,Class<? extends T> recordClass){
+	public <T extends Record> T getRecordBySql(String sql,Class<T> recordClass) throws MysqlORMException, ClassNotFoundException, InstantiationException, IllegalAccessException, IOException, MysqlConnectionPoolException, SQLException{
 		//内部使用getRecordsBySql函数实现；
-		return null;
+		List<T> records = getRecordsBySql(sql, recordClass);
+		if(records.size()>1){
+			throw new MysqlORMException("not only one record");
+		}
+		if(records.size() == 0){
+			return null;
+		}
+		return records.get(0);
 	}
 	/**
+	 * @throws MysqlConnectionPoolException 
+	 * @throws IOException 
+	 * @throws SQLException 
+	 * @throws ClassNotFoundException 
+	 * @throws IllegalAccessException 
+	 * @throws InstantiationException 
 	 * 
 	 */
-	public T getRecordsBySql(String sql,Class<? extends T> recordClass){
+	public <T extends Record> List<T> getRecordsBySql(String sql,Class<T> recordClass) throws IOException, MysqlConnectionPoolException, ClassNotFoundException, SQLException, InstantiationException, IllegalAccessException{
+		MysqlConnection mysqlConnection = mysqlConnectionPool.getNotInUseConnection();
+		ResultSet resultSet = mysqlConnection.query(sql);
+		List<T> records = resultSetToRecordList(resultSet,recordClass);
+		mysqlConnectionPool.laybackConncetion(mysqlConnection);
+		return records;
 		//执行语句，将结果集生成对象
-		return null;
 	}
 	/**
+	 * @throws SQLException 
+	 * @throws IllegalAccessException 
+	 * @throws InstantiationException 
 	 * 
 	 */
-	private List<T> resultSetToRecordList(ResultSet resultSet){
-		return null;
+	private <T extends Record>  List<T> resultSetToRecordList(ResultSet resultSet,Class<T> recordClass) throws InstantiationException, SQLException, IllegalAccessException{
+		List<T> list = new ArrayList<T>();
+		while(resultSet.next()){
+			T record = recordClass.newInstance();
+			//不用反射，消耗大，调用设置值方法；
+			record.initValue(resultSet);
+			list.add(record);
+		}
+		return list;
 	}
-	
-	//如果只使用这个库，是不会有这个需求的；
-//	/**
-//	 * 
-//	 */
-//	public List<String[]> getPrimaryKeyValuesBySql(String sql){
-//		return null;
-//	}
 }

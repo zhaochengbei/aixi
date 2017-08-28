@@ -1,5 +1,7 @@
 package store.aixi.mysqlorm;
 
+import java.io.File;
+import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
@@ -601,7 +603,8 @@ public class TableSqlCodeBuilder {
 		stringBuilder.append("import store.aixi.mysqlorm.Key;\n");
 		stringBuilder.append("import store.aixi.mysqlorm.Record;\n");
 		stringBuilder.append("import store.aixi.mysqlorm.Table;\n\n");
-		stringBuilder.append("/**\n * author: mysqlorm\n * date: "+(new Date())+"\n */\n");
+		stringBuilder.append("import java.sql.ResultSet;\n\n");
+		stringBuilder.append("import java.sql.SQLException;\n\n");stringBuilder.append("/**\n * author: mysqlorm\n * date: "+(new Date())+"\n */\n");
 		String className = getClassNameByTableName(table.name);
 		stringBuilder.append("public class "+className+" extends Record {\n");
 		stringBuilder.append("\t/**\n\t *\n\t */\n");
@@ -695,8 +698,8 @@ public class TableSqlCodeBuilder {
 			}
 			stringBuilder.append(dataTypeInJava);
 			stringBuilder.append(" ");
-			stringBuilder.append(column.name);
-			
+			stringBuilder.append(getFieldNameByColumnName(column.name));
+
 			//如果有默认值；
 			
 			if(column.defaultValue != null){
@@ -709,32 +712,135 @@ public class TableSqlCodeBuilder {
 				if(dataTypeInJava.equals("String")){
 					stringBuilder.append('"');
 				}
-//				Object defaultValue = null;
-//				if(dataTypeInJava.equals("int")){
-//					defaultValue = Integer.valueOf(column.defaultValue);
-//				}
-//				if(dataTypeInJava.equals("long")){
-//					defaultValue = Long.valueOf(column.defaultValue);
-//				}
-//				if(dataTypeInJava.equals("boolean")){
-//					defaultValue = Boolean.valueOf(column.defaultValue);
-//				}
-//				if(dataTypeInJava.equals("double")){
-//					defaultValue = Double.valueOf(column.defaultValue);
-//				}
-//				if(dataTypeInJava.equals("float")){
-//					defaultValue = Float.valueOf(column.defaultValue);
-//				}
-//				if(dataTypeInJava.equals("String")){
-//					defaultValue = column.defaultValue;
-//				}
-//				//byte[]统一默认值为空数组；
-//				if(dataTypeInJava.equals("byte[]")){
-//					defaultValue = "new byte[0]";
-//				}
 			}
 			stringBuilder.append(";\n");
 		}
+		//生成getInsertSql()方法；
+		stringBuilder.append("\t/**\n\t *\n\t */\n");
+		stringBuilder.append("\tpublic String getInsertSql(){\n");
+		stringBuilder.append("\t\tString sql=\"INSERT INTO `");
+		stringBuilder.append(table.name);
+		stringBuilder.append("` (");
+		for (int i = 0; i < table.columns.length; i++) {
+			Column column = table.columns[i];
+			stringBuilder.append("`");
+			stringBuilder.append(column.name);
+			stringBuilder.append("`");
+			//如果不是最后一个
+			if(i<table.columns.length-1){
+				stringBuilder.append(",");
+			}
+		}
+		stringBuilder.append(") VALUES(");
+		for (int i = 0; i < table.columns.length; i++) {
+			Column column = table.columns[i];
+			stringBuilder.append("'\"+");
+			stringBuilder.append(getFieldNameByColumnName(column.name));
+			stringBuilder.append("+\"'");
+			//如果不是最后一个
+			if(i<table.columns.length-1){
+				stringBuilder.append(",");
+			}
+		}
+		stringBuilder.append(");\";\n\t\treturn sql;\n");
+		stringBuilder.append("\t}\n");
+		//getUpdateSql();
+		stringBuilder.append("\t/**\n\t *\n\t */\n");
+		stringBuilder.append("\tpublic String getUpdateSql(){\n");
+		stringBuilder.append("\t\tString sql=\"UPDATE `");
+		stringBuilder.append(table.name);
+		stringBuilder.append("` SET ");
+		for (int i = 0; i < table.columns.length; i++) {
+			Column column = table.columns[i];
+			stringBuilder.append("`");
+			stringBuilder.append(column.name);
+			stringBuilder.append("`=");
+			stringBuilder.append("'\"+");
+			stringBuilder.append(getFieldNameByColumnName(column.name));
+			stringBuilder.append("+\"'");
+			//如果不是最后一个
+			if(i<table.columns.length-1){
+				stringBuilder.append(",");
+			}
+		}
+		stringBuilder.append(" WHERE ");
+		for (int i = 0; i < table.primaryKeys.length; i++) {
+			String primaryKey = table.primaryKeys[i];
+			stringBuilder.append("`");
+			stringBuilder.append(primaryKey);
+			stringBuilder.append("`=");
+			stringBuilder.append("'\"+");
+			stringBuilder.append(getFieldNameByColumnName(primaryKey));
+			stringBuilder.append("+\"'");
+			if(i<table.primaryKeys.length-1){
+				stringBuilder.append(" and ");
+			}
+		}
+		stringBuilder.append(";\";\n\t\treturn sql;\n");
+		stringBuilder.append("\t}\n");
+
+		//initValue()
+		stringBuilder.append("\t/**\n\t *\n\t */\n");
+		stringBuilder.append("\tpublic void initValue(ResultSet resultSet) throws SQLException{");
+		for (int i = 0; i < table.columns.length; i++) {
+			Column column = table.columns[i];
+			stringBuilder.append("\n\t\t");
+			stringBuilder.append(getFieldNameByColumnName(column.name));
+			stringBuilder.append("=");
+			stringBuilder.append("resultSet.");
+			String getDataMethod = "UnknowMthod";
+			if((column.columnType.indexOf("int")!=-1&&column.columnType.indexOf("bigint")==-1)||column.columnType.indexOf("integer")!=-1){
+				getDataMethod = "getInt";
+			}
+			//bigint为long；
+			if(column.columnType.indexOf("bigint")!=-1){
+				getDataMethod = "getLong";
+			}
+			//bit为boolean
+			if(column.columnType.equals("bit")){
+				getDataMethod = "getBoolean";
+			}
+			//double is double,float is float
+			if(column.columnType.equals("double")){
+				getDataMethod = "getDouble";
+			}
+			if(column.columnType.equals("float")){
+				getDataMethod = "getFloat";
+			}
+			//char,varchar,tinytext,text,longtext,mediumtext,为string;
+			if(column.columnType.indexOf("char")!= -1||column.columnType.indexOf("text")!=-1){
+				getDataMethod = "getString";
+			}
+			//binary,varbinary,tinyblob,mediumblob,blob,longblob;
+			if(column.columnType.indexOf("binary")!= -1||column.columnType.indexOf("blob")!=-1){
+				getDataMethod = "getBytes";
+			}
+			stringBuilder.append(getDataMethod);
+			stringBuilder.append("(\"");
+			stringBuilder.append(column.name);
+			stringBuilder.append("\");");
+		}
+		stringBuilder.append("\n\t}\n");
+		//toString
+
+		stringBuilder.append("\t/**\n\t *\n\t */\n");
+		stringBuilder.append("\tpublic String toString(){");
+		stringBuilder.append("\n\t\tString str=\"");
+		stringBuilder.append(className);
+		stringBuilder.append("@\"+Integer.toHexString(hashCode())+\"[");
+		for (int i = 0; i < table.columns.length; i++) {
+			Column column = table.columns[i];
+			stringBuilder.append(getFieldNameByColumnName(column.name));
+			stringBuilder.append("=");
+			stringBuilder.append("\"+");
+			stringBuilder.append(getFieldNameByColumnName(column.name));
+			stringBuilder.append("+\"");
+			if(i<table.columns.length-1){
+				stringBuilder.append(",");
+			}
+		}
+		stringBuilder.append("]\";\n\t\treturn str;");
+		stringBuilder.append("\n\t}\n");
 		stringBuilder.append("}\n");
 		return stringBuilder.toString();
 	}
@@ -750,5 +856,18 @@ public class TableSqlCodeBuilder {
 		}
 		className +="Record";
 		return className;
+	}
+	/**
+	 * 
+	 */
+	static public String getFieldNameByColumnName(String columnName){
+		String fieldName = "";
+		String[] classSubNames =columnName.split("_");
+		fieldName = classSubNames[0];
+		for (int i = 1; i < classSubNames.length; i++) {
+			fieldName +=classSubNames[i].substring(0, 1).toUpperCase();
+			fieldName += classSubNames[i].substring(1);
+		}
+		return fieldName;
 	}
 }

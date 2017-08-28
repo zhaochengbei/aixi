@@ -5,9 +5,13 @@ import store.aixi.mysqlorm.Key;
 import store.aixi.mysqlorm.Record;
 import store.aixi.mysqlorm.Table;
 
+import java.sql.ResultSet;
+
+import java.sql.SQLException;
+
 /**
  * author: mysqlorm
- * date: Fri Aug 25 17:49:58 CST 2017
+ * date: Mon Aug 28 16:57:10 CST 2017
  */
 public class TestRecord extends Record {
 	/**
@@ -33,7 +37,7 @@ public class TestRecord extends Record {
 			column.comment = null;
 			table.columns[0] = column;
 			column = new Column();
-			column.name = "name2";
+			column.name = "name_some";
 			column.columnType = "varchar(50)";
 			column.charset = "utf8";
 			column.collate = "utf8_bin";
@@ -76,9 +80,38 @@ public class TestRecord extends Record {
 	/**
 	 *
 	 */
-	public String name2 = "ddd";
+	public String nameSome = "ddd";
 	/**
 	 *
 	 */
 	public String name;
+	/**
+	 *
+	 */
+	public String getInsertSql(){
+		String sql="INSERT INTO `t_test` (`id`,`name_some`,`name`) VALUES('"+id+"','"+nameSome+"','"+name+"');";
+		return sql;
+	}
+	/**
+	 *
+	 */
+	public String getUpdateSql(){
+		String sql="UPDATE `t_test` SET `id`='"+id+"',`name_some`='"+nameSome+"',`name`='"+name+"' WHERE `name`='"+name+"';";
+		return sql;
+	}
+	/**
+	 *
+	 */
+	public void initValue(ResultSet resultSet) throws SQLException{
+		id=resultSet.getLong("id");
+		nameSome=resultSet.getString("name_some");
+		name=resultSet.getString("name");
+	}
+	/**
+	 *
+	 */
+	public String toString(){
+		String str="TestRecord@"+Integer.toHexString(hashCode())+"[id="+id+",nameSome="+nameSome+",name="+name+"]";
+		return str;
+	}
 }
