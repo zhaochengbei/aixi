@@ -19,7 +19,7 @@ import store.aixi.mysqlconnectionpool.MysqlConnectionPoolException;
  * author：zhaochengbei
  * date：2017/8/14
 */
-public class MysqlORM {
+public class  MysqlORM <T extends Record> {
 
 	/**
 	 * 
@@ -33,6 +33,10 @@ public class MysqlORM {
 	 * 
 	 */
 	private String recordClassPackage;
+	/**
+	 * 
+	 */
+	private Map<Class<T>, T> classToInstance = new HashMap<Class<T>, T>();
 	/**
 	 * 
 	 */
@@ -263,50 +267,80 @@ public class MysqlORM {
 	}
 
 	/**
+	 * @throws MysqlConnectionPoolException 
+	 * @throws IOException 
+	 * @throws SQLException 
+	 * @throws ClassNotFoundException 
 	 * 
 	 */
-	public void insertRecord(Record record){
-		
+	public void insertRecord(Record record) throws IOException, MysqlConnectionPoolException, ClassNotFoundException, SQLException{
+		//使用record生成插入语句；//生成代码的方式效率最高；
+		String sql = "";
+		MysqlConnection mysqlConnection = mysqlConnectionPool.getNotInUseConnection();
+		mysqlConnection.update(sql);
+	}
+	/**
+	 * @throws MysqlConnectionPoolException 
+	 * @throws IOException 
+	 * @throws SQLException 
+	 * @throws ClassNotFoundException 
+	 * 
+	 */
+	public void updateRecord(Record record) throws IOException, MysqlConnectionPoolException, ClassNotFoundException, SQLException{
+		//同上；//
+		String sql = "";
+		MysqlConnection mysqlConnection = mysqlConnectionPool.getNotInUseConnection();
+		mysqlConnection.update(sql);
 	}
 	/**
 	 * 
 	 */
-	public void updateRecord(Record record){
-		
+	public <T extends Record> T getRecordByPrimaryKeyValues(String[] primaryKeyValues,Class<? extends T> recordClass){
+		//内部使用getRecordsByPrimaryKeyPartValues实现；
+		getRecordsByPrimaryKeyPartValues(primaryKeyValues, recordClass);
+		return null;
 	}
 	/**
 	 * 
 	 */
-	public <T extends Record> T getRecordByPrimaryKeyValues(String[] primaryKeyValues,T recordClass){
+	public <T extends Record> List<T> getRecordsByPrimaryKeyPartValues(String[] primaryKeyPartValues,Class<? extends T> recordClass){
+		//这个只能用遍历的；因为不确定传入的主键数量；
+		//内部使用getRecordsBySql函数实现；
+		
+		return null;
+	}
+	/**
+	 * @throws IllegalAccessException 
+	 * @throws InstantiationException 
+	 * 
+	 */
+	public T getInstanceByClass(Class<T> recordClass) throws InstantiationException, IllegalAccessException{
+		if(classToInstance.containsKey(recordClass) == false){
+			classToInstance.put(recordClass, recordClass.newInstance());
+		}
+		return classToInstance.get(recordClass);
+	}
+	/**
+	 * 
+	 */
+	public T getRecordBySql(String sql,Class<? extends T> recordClass){
 		//内部使用getRecordsBySql函数实现；
 		return null;
 	}
 	/**
 	 * 
 	 */
-	public <T extends Record> T getRecordsByPrimaryKeyPartValues(String[] primaryKeyPartValues,T recordClass){
-		//内部使用getRecordBySql函数实现；
+	public T getRecordsBySql(String sql,Class<? extends T> recordClass){
+		//执行语句，将结果集生成对象
 		return null;
 	}
 	/**
 	 * 
 	 */
-	public <T extends Record> T getRecordBySql(String sql,T recordClass){
-		//内部使用getRecordsBySql函数实现；
+	private List<T> resultSetToRecordList(ResultSet resultSet){
 		return null;
 	}
-	/**
-	 * 
-	 */
-	public <T extends Record> T getRecordsBySql(String sql,T recordClass){
-		return null;
-	}
-	/**
-	 * 
-	 */
-	private List<? extends Record> resultSetToRecordList(ResultSet resultSet){
-		return null;
-	}
+	
 	//如果只使用这个库，是不会有这个需求的；
 //	/**
 //	 * 
