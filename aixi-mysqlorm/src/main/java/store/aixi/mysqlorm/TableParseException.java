@@ -1,7 +1,7 @@
 package store.aixi.mysqlorm;
 /**
  * author：zhaochengbei
- * date：2017年8月17日
+ * date：2017/8/17
 */
 public class TableParseException extends Exception {
 

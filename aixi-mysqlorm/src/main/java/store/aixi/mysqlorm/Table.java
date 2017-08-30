@@ -5,7 +5,7 @@ package store.aixi.mysqlorm;
 */
 public class Table {
 	/**
-	 * collate和comment可以为null，其他的都不可以；
+	 * collate and comment can be null, other can not.
 	 */
 	public String name;
 	public Column[] columns = new Column[0];

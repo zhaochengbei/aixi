@@ -39,7 +39,7 @@ public class ClassUtil {
                     //
                     findClassName(classList, pkgName, pkgPath);  
                 } else if ("jar".equals(protocol)) {  
-                    // 引用第三方jar的代码  
+                    //find class name from jar
                     findClassName(classList, pkgName, url);  
                 }  
             }  
@@ -58,11 +58,11 @@ public class ClassUtil {
             for (File f : files) {  
                 String fileName = f.getName();  
                 if (f.isFile()) {  
-                    // .class 文件的情况  
+                    // find class name from .class file 
                     String clazzName = getClassName(pkgName, fileName);  
                     addClassName(clazzList, clazzName);  
                 } else {  
-                    // 需要继续查找该文件夹/包名下的类  
+                    // if is a folder,continue to find class name under folder.
                     String subPkgName = pkgName +"."+ fileName;  
                     String subPkgPath = pkgPath +"/"+ fileName;  
                     findClassName(clazzList, subPkgName, subPkgPath); 
@@ -72,7 +72,6 @@ public class ClassUtil {
     }  
       
     /** 
-     * 第三方Jar类库的引用。<br/> 
      * @throws IOException  
      * @throws ClassNotFoundException 
      * */  
@@ -129,10 +128,6 @@ public class ClassUtil {
     private static void addClassName(List<Class<?>> clazzList, String clazzName)throws ClassNotFoundException {  
         if (clazzList != null && clazzName != null) {  
             Class<?> clazz = null;
-//            if("org.apache.log4j.Priority".equals(clazzName)){
-            	System.out.println(clazzName);
-//            }
-            	
             clazz = Class.forName(clazzName);
             clazzList.add(clazz);  
         }  

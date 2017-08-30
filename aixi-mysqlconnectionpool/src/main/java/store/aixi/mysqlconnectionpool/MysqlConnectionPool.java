@@ -67,7 +67,7 @@ public class MysqlConnectionPool {
 	 */
 	public synchronized MysqlConnection getNotInUseConnection() throws IOException, MysqlConnectionPoolException{
 		if(notInUsedConnections.size()>0){
-			return notInUsedConnections.get(0);
+			return notInUsedConnections.remove(0);
 		}
 		throw new MysqlConnectionPoolException(MysqlConnectionPoolException.NO_CONNECTION_IN_POOL);
 	}

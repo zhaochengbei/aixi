@@ -5,7 +5,7 @@ package store.aixi.mysqlorm;
 */
 public class Column {
 	/**
-	 * name 和 columnType必须有值，两个boolean值有默认值，其他的可以为null；
+	 * name and  columnType must has value,boolean property has default value false,other property has default value null.
 	 */
 	public String name;
 	/**
@@ -15,7 +15,7 @@ public class Column {
 	public String charset;
 	public String collate;
 	public boolean nullAble = true;
-	public String defaultValue;//只有nullable=false时才有效；
+	public String defaultValue;//only nullable=false has effect.
 	public boolean autoIncrement = false;
 	public String comment;
 }

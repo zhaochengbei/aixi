@@ -1,7 +1,7 @@
 package store.aixi.mysqlorm;
 /**
  * author：zhaochengbei
- * date：2017年8月28日
+ * date：2017/8/28
 */
 public class MysqlORMException extends Exception {
 	/**

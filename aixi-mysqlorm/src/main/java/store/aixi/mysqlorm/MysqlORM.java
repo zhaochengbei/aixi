@@ -61,48 +61,41 @@ public class MysqlORM {
 	 * 
 	 */
 	public void syncTableDefineToDBStructs() throws SQLException, ClassNotFoundException, IOException, MysqlConnectionPoolException, InstantiationException, IllegalAccessException, TableParseException{
-		//连接数据库，拿到所有类，遍历类，拿到对应表名，检查是否包含此表，不包含就创建；
-		//拿到表结构遍历类字段，检查表是否包含该字段，将字段放入到对应的位置上；
+		//get connection,get all classes,get all tables name.
 		MysqlConnection mysqlConnection = this.mysqlConnectionPool.getNotInUseConnection();
 		List<Class<?>> classes = ClassUtil.getClassList(this.recordClassPackage);
-		//拿到库里有哪些表；
 		Map<String, Boolean> hasTable = new HashMap<String, Boolean>();
-		//查询表；
 		ResultSet resultSet = mysqlConnection.query("show tables;");
-		//遍历行,遍历字段,一次打印;
 		while (resultSet.next()) {
 			String tableName = resultSet.getString(1);
 			hasTable.put(tableName, true);			
 		}
 		resultSet.close();
-		//遍历记录类，没有对应的表就创建，如果有表；
+		//loop classes ,according table object and table struct create sql and execute sql.
 		for (int i = 0; i < classes.size(); i++) {
 			Class<Record> clazz = (Class<Record>)classes.get(i);
 			Record record = clazz.newInstance();
 			Table table = record.getTable();
+			System.out.println("table object one-to-one match create sql:");
 			System.out.println(TableSqlCodeBuilder.buildSqlByTable(table));
-			
+			//if not match struct. create sql by table.
 			if(hasTable.containsKey(table.name) == false){
-				//生成sql语句
 				String createSql = TableSqlCodeBuilder.buildSqlByTable(table);
-				//执行sql
 				mysqlConnection.update(createSql);
 			}else{
-				//拿到建表语句；
-				resultSet = mysqlConnection.query("show create table `"+table.name+"`;");
-				//根据语句创建表对象；
+				//if has match table struct ,create sql by different between table object and table struct.
+				resultSet = mysqlConnection.query("SHOW CREATE TABLE `"+table.name+"`;");
 				resultSet.next();
 				String createSql = resultSet.getString(2);
+				System.out.println("table struct in database create sql:");
 				System.out.println(createSql);
 				resultSet.close();
 				Table tableInDB = TableSqlCodeBuilder.buildTableBySql(createSql);
-				//遍历表属性，栏目，主键，索引，计算差异生成sql；
-				//如果表属性有变化，修改表属性；
+				//loop table property and column and primary key and keys. general sql by different.
 				if(strEquals(table.engine, tableInDB.engine) == false
 						||strEquals(table.charset, tableInDB.charset) == false
 						||strEquals(table.collate, tableInDB.collate) == false
 						||strEquals(table.comment, tableInDB.comment) == false){
-					//生成修改属性语句，并执行；
 					String modifySql = "ALTER TABLE "+table.name+" ENGINE "+table.engine+" DEFAULT CHARSET "+table.charset;
 					if(table.collate!= null){
 						modifySql+=" COLLATE "+table.collate;
@@ -112,8 +105,7 @@ public class MysqlORM {
 					}
 					mysqlConnection.update(modifySql);
 				}
-				//主键会妨碍修改栏目，所以要先处理；
-				//检查主键是否完全相等；
+				//primary key effect column modify,so Advance process. 
 				boolean primaryKeyEquals = true;
 				if(table.primaryKeys.length != tableInDB.primaryKeys.length){
 					primaryKeyEquals = false;
@@ -125,27 +117,22 @@ public class MysqlORM {
 					}
 				}
 				if(primaryKeyEquals == false){
-					//如果之前存在;
 					if(tableInDB.primaryKeys.length !=0){
 						String primarySql = "ALTER TABLE `"+table.name+"` DROP PRIMARY KEY;";
 						mysqlConnection.update(primarySql);
 					}
 				}
-				
-				//遍历栏目，如果栏目有变化，修改栏目；
+				//process columns
 				Map<String, Column> columnsInDBTable = new HashMap<String, Column>();
 				for (int j = 0; j < tableInDB.columns.length; j++) {
 					columnsInDBTable.put(tableInDB.columns[j].name, tableInDB.columns[j]);
 				}
 				for (int j = 0; j < table.columns.length; j++) {
 					Column column = table.columns[j];
-					//如果库里没有这个字段则增加，如果有则修改；
 					if(columnsInDBTable.containsKey(column.name) == false){
-						//name type 必须有值，其他不必有值；
 						String addSql = "ALTER TABLE `"+table.name+"` ADD " +generateColumnSql(column)+";";
 						mysqlConnection.update(addSql);
 					}else{
-						//如果字段不一样则修改；
 						Column columnInDBTable = columnsInDBTable.get(column.name);
 						if(strEquals(column.columnType, columnInDBTable.columnType) == false
 								||strEquals(column.charset, columnInDBTable.charset) == false
@@ -166,7 +153,7 @@ public class MysqlORM {
 					stringBuilder.append(";");
 					mysqlConnection.update(stringBuilder.toString());
 				}
-				//遍历每个key，如果现在没有对应的key创建，如果有修改;
+				//process keys
 				Map<String, Key> keysInDBTable = new HashMap<String, Key>();
 				for (int j = 0; j < tableInDB.keys.length; j++) {
 					keysInDBTable.put(tableInDB.keys[j].name, tableInDB.keys[j]);
@@ -202,20 +189,34 @@ public class MysqlORM {
 		}
 		mysqlConnectionPool.laybackConncetion(mysqlConnection);
 	}
-	
+	/**
+	 * 
+	 * @param value1
+	 * @param value2
+	 * @return
+	 */
 	private boolean strEquals(String value1,String value2){
 		if(value1 != null&&value2 != null){
 			return value1.equals(value2);
 		}
-		//有一个为null，或者两个都为null；
 		return value1 == value2;
 	}
+	/**
+	 * 
+	 * @param column
+	 * @return
+	 */
 	private String generateColumnSql(Column column){
-		//name type 必须有值，其他不必有值；
 		StringBuilder stringBuilder = new StringBuilder();
 		TableSqlCodeBuilder.addColumnSql(stringBuilder, column);
 		return stringBuilder.toString();
 	}
+	/**
+	 * 
+	 * @param table
+	 * @param key
+	 * @return
+	 */
 	private String generateAddKeySql(Table table,Key key){
 
 		StringBuilder stringBuilder = new StringBuilder();
@@ -233,36 +234,35 @@ public class MysqlORM {
 	 * 
 	 */
 	public void generateRecordClassByDBStructs() throws IOException, MysqlConnectionPoolException, ClassNotFoundException, SQLException, TableParseException{
-		//读取表结构信息，遍历表，拿到表创建语句，根据语句生成table对象，在根据table对象生成Record类字符串；然后保存；
+		// get all tables name.
 		MysqlConnection mysqlConnection = this.mysqlConnectionPool.getNotInUseConnection();
-		//查询表；
 		ResultSet resultSet = mysqlConnection.query("show tables;");
 		List<String> tableNames = new ArrayList<String>();
-		//遍历行,遍历字段,一次打印;
 		while (resultSet.next()) {
 			String tableName = resultSet.getString(1);
 			tableNames.add(tableName);
 		}
 		resultSet.close();
+		// loop all tables name.
 		Iterator<String> iterator = tableNames.iterator();
 		while (iterator.hasNext()) {
 			String tableName = (String) iterator.next();
-			resultSet = mysqlConnection.query("show create table `"+tableName+"`;");
-			//根据语句创建表对象；
+			resultSet = mysqlConnection.query("SHOW CREATE TABLE `"+tableName+"`;");
 			resultSet.next();
 			String createSql = resultSet.getString(2);
-			System.out.println(createSql);
 			resultSet.close();
+			System.out.println("create sql of table struct in database:");
+			System.out.println(createSql);
+			//sql convert to table object,table object convert to record class string. 
 			Table tableInDB = TableSqlCodeBuilder.buildTableBySql(createSql);
 			String recordClassStr = TableSqlCodeBuilder.generateRecordCodeByTable(tableInDB, recordClassPackage);
-			//存储在制定文件夹；
+			//save in desk.
 			String className = TableSqlCodeBuilder.getClassNameByTableName(tableName);
 			File file = new File(recordClassFolder+"/"+className+".java");
 			FileWriter fileWriter = new FileWriter(file);
 			fileWriter.write(recordClassStr);
 			fileWriter.close();
 		}
-		resultSet.close();
 		mysqlConnectionPool.laybackConncetion(mysqlConnection);
 	}
 
@@ -274,7 +274,7 @@ public class MysqlORM {
 	 * 
 	 */
 	public void insertRecord(Record record) throws IOException, MysqlConnectionPoolException, ClassNotFoundException, SQLException{
-		//使用record生成插入语句；//生成代码的方式效率最高；
+		//general code has best proformance.
 		String sql = record.getInsertSql();
 		MysqlConnection mysqlConnection = mysqlConnectionPool.getNotInUseConnection();
 		mysqlConnection.update(sql);
@@ -289,7 +289,6 @@ public class MysqlORM {
 	 * 
 	 */
 	public void updateRecord(Record record) throws IOException, MysqlConnectionPoolException, ClassNotFoundException, SQLException{
-		//同上；//
 		String sql = record.getUpdateSql();
 		MysqlConnection mysqlConnection = mysqlConnectionPool.getNotInUseConnection();
 		mysqlConnection.update(sql);
@@ -316,7 +315,6 @@ public class MysqlORM {
 	 * 
 	 */
 	public <T extends Record> T getRecordByPrimaryKeyValues(String[] primaryKeyValues,Class<T> recordClass) throws MysqlORMException, InstantiationException, IllegalAccessException, ClassNotFoundException, IOException, MysqlConnectionPoolException, SQLException{
-		//内部使用getRecordsByPrimaryKeyPartValues实现；
 		List<T> records= getRecordsByPrimaryKeyPartValues(primaryKeyValues, recordClass);
 		if(records.size()>1){
 			throw new MysqlORMException("not only one record");
@@ -336,7 +334,7 @@ public class MysqlORM {
 	 * 
 	 */
 	public <T extends Record> List<T> getRecordsByPrimaryKeyPartValues(String[] primaryKeyPartValues,Class<T> recordClass) throws InstantiationException, IllegalAccessException, ClassNotFoundException, IOException, MysqlConnectionPoolException, SQLException{
-		//这个只能用遍历的；因为不确定传入的主键数量；
+		//only can use loop ,because not know how many part will transmit.
 		Table table = getTableByClass(recordClass);
 		StringBuilder stringBuilder = new StringBuilder();
 		stringBuilder.append("SELECT * FROM `");
@@ -349,7 +347,7 @@ public class MysqlORM {
 			stringBuilder.append("`='");
 			stringBuilder.append(primaryKeyPartValues[i]);
 			stringBuilder.append("'");
-			//如果后面还有；
+			//
 			if(i<primaryKeyPartValues.length-1){
 				stringBuilder.append(" and ");
 			}
@@ -380,7 +378,6 @@ public class MysqlORM {
 	 * 
 	 */
 	public <T extends Record> T getRecordBySql(String sql,Class<T> recordClass) throws MysqlORMException, ClassNotFoundException, InstantiationException, IllegalAccessException, IOException, MysqlConnectionPoolException, SQLException{
-		//内部使用getRecordsBySql函数实现；
 		List<T> records = getRecordsBySql(sql, recordClass);
 		if(records.size()>1){
 			throw new MysqlORMException("not only one record");
@@ -405,7 +402,6 @@ public class MysqlORM {
 		List<T> records = resultSetToRecordList(resultSet,recordClass);
 		mysqlConnectionPool.laybackConncetion(mysqlConnection);
 		return records;
-		//执行语句，将结果集生成对象
 	}
 	/**
 	 * @throws SQLException 
@@ -417,7 +413,6 @@ public class MysqlORM {
 		List<T> list = new ArrayList<T>();
 		while(resultSet.next()){
 			T record = recordClass.newInstance();
-			//不用反射，消耗大，调用设置值方法；
 			record.initValue(resultSet);
 			list.add(record);
 		}

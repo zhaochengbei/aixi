@@ -18,38 +18,34 @@ import com.mysql.jdbc.Blob;
 public class TableSqlCodeBuilder {
 
 	/**
-	 * 根据sql语句构造Table;
 	 * @throws TableParseException 
 	 */
 	static public Table buildTableBySql(String sql) throws TableParseException{
 		Table table = new Table();
-		//承装中间结果；
+
 		List<Column> columns = new ArrayList<Column>();
 		List<String> primaryKeys = new ArrayList<String>();
 		List<Key> keys = new ArrayList<Key>();
 		List<String> fieldInKey = new ArrayList<String>();
 		Column column = null;
 		Key key = null;
-		//解析对象栈；
 		Stack<Integer> parseObjectStack = new Stack<Integer>();
-		//缓冲区；
 		StringBuilder bufferArea = new StringBuilder();
-		//解析阶段；
 		int parsePhase = TableParseObjectPhase.WAIT_START;
-		//从Create Table关键字开始；
+		//first parse CRATE TABLE.
 		parseObjectStack.push(TableParseObject.CRATE_TABLE);
 		for (int i = 0; i < sql.length(); i++) {
 			char c = sql.charAt(i);
-			//根据解析对象与阶段做出处理；
+			
 			switch(parseObjectStack.get(parseObjectStack.size()-1)){
 			case TableParseObject.CRATE_TABLE:
 				if(c == '`'){
 					if(bufferArea.toString().indexOf("CREATE TABLE") == -1){
 						throw new TableParseException(TableParseException.UNKOWN);
 					}
-					//清空缓冲区
+					
 					bufferArea.delete(0, bufferArea.length());
-					//进入下一个阶段
+					
 					parseObjectStack.pop();
 					parseObjectStack.push(TableParseObject.NAME);
 					parsePhase = TableParseObjectPhase.WAIT_END;
@@ -65,26 +61,22 @@ public class TableSqlCodeBuilder {
 				}else{
 					if(c == '`'){
 						String name = bufferArea.toString();
-						//清空缓冲区
 						bufferArea.delete(0, bufferArea.length());
 						if(name.isEmpty()){
 							throw new TableParseException(TableParseException.UNKOWN);
 						}
 						if(parseObjectStack.size() == 1){
 							table.name = name; 
-							//进入下一个阶段
 							parseObjectStack.pop();
 							parseObjectStack.push(TableParseObject.ELEMENT);
 						}else if (parseObjectStack.get(parseObjectStack.size()-2) ==TableParseObject.COLUMN){
 							column.name = name;
-							//解析完名字，开始解析数据类型；
 							parseObjectStack.pop();
 							parseObjectStack.push(TableParseObject.DATA_TYPE);
 							parsePhase = TableParseObjectPhase.WAIT_START;
 						}else if(parseObjectStack.get(parseObjectStack.size()-2) == TableParseObject.KEY){
 							key.name = name;
 							parseObjectStack.pop();
-							//解析key中的字段；
 							fieldInKey.clear();
 							parseObjectStack.push(TableParseObject.FIELD);
 							parsePhase = TableParseObjectPhase.WAIT_START;
@@ -95,7 +87,6 @@ public class TableSqlCodeBuilder {
 				}
 				break;
 			case TableParseObject.ELEMENT:
-				//如果出现'，代表当前正在解析column的名字；
 				if(c == '`'){
 					parseObjectStack.push(TableParseObject.COLUMN);
 					column = new Column();
@@ -132,7 +123,6 @@ public class TableSqlCodeBuilder {
 					parsePhase = TableParseObjectPhase.WAIT_START;
 				}
 				if(c == ')'){
-					//开始解析表属性；
 					parseObjectStack.push(TableParseObject.TABLE_ATT);
 					parsePhase = TableParseObjectPhase.WAIT_START;
 				}
@@ -146,7 +136,6 @@ public class TableSqlCodeBuilder {
 					if(c == ' '||c== ','||c=='\n'){
 						column.columnType = bufferArea.toString();
 						bufferArea.delete(0, bufferArea.length());
-						//解析其他属性;
 						parseObjectStack.pop();
 						parseObjectStack.push(TableParseObject.COLUMN_ATT);
 						parsePhase = TableParseObjectPhase.WAIT_END;
@@ -162,12 +151,10 @@ public class TableSqlCodeBuilder {
 					}
 				}else{
 					if(c == ' '||c== ','||c=='\n'){
-						//检查是哪个属性
 						String columnAttName = bufferArea.toString();
 						if(columnAttName.equals("unsigned")||columnAttName.equals("zerofill")){
 							column.columnType+=" "+columnAttName;
 							bufferArea.delete(0, bufferArea.length());
-							//准备读取下一格属性
 							parsePhase = TableParseObjectPhase.WAIT_END;
 						}
 						if(columnAttName.equals("NOT NULL")){
@@ -182,7 +169,6 @@ public class TableSqlCodeBuilder {
 						}
 						if(columnAttName.equals("CHARACTER SET")){
 							bufferArea.delete(0, bufferArea.length());
-							//解析字符集；
 							parseObjectStack.push(TableParseObject.CHARSET);
 							parsePhase = TableParseObjectPhase.WAIT_END;
 						}
@@ -201,7 +187,6 @@ public class TableSqlCodeBuilder {
 							parseObjectStack.push(TableParseObject.DEFAULT_VALUE);
 							parsePhase = TableParseObjectPhase.WAIT_END;
 						}
-						//没有匹配上,说明空格是关键字中的一部分；
 						if(bufferArea.length() != 0){
 							bufferArea.append(c);
 						}
@@ -321,9 +306,7 @@ public class TableSqlCodeBuilder {
 						parsePhase = TableParseObjectPhase.WAIT_END;
 					}
 					if(c == ')'){
-						//字段列表解析结束；
 						table.primaryKeys = primaryKeys.toArray(new String[0]);
-						//返回上一级；
 						parseObjectStack.pop();
 					}
 				}else{
@@ -331,7 +314,6 @@ public class TableSqlCodeBuilder {
 						String primaryKey = bufferArea.toString();
 						bufferArea.delete(0, bufferArea.length());
 						primaryKeys.add(primaryKey);
-						//继续解析下一个；
 						parsePhase = TableParseObjectPhase.WAIT_START;
 					}else{
 						bufferArea.append(c);
@@ -345,15 +327,10 @@ public class TableSqlCodeBuilder {
 					}
 					
 					if(c == ')'){
-						//字段列表解析结束；
 						key.fields = fieldInKey.toArray(new String[0]);
-						//开始读取使用的检索类型;
 						parseObjectStack.pop();
 						parseObjectStack.push(TableParseObject.KEY_INDEX_METHOD);
 						parsePhase = TableParseObjectPhase.WAIT_START;
-//						//返回上上级；
-//						parseObjectStack.pop();
-//						parseObjectStack.pop();
 					}
 				
 				}else{
@@ -361,7 +338,6 @@ public class TableSqlCodeBuilder {
 						String field = bufferArea.toString();
 						bufferArea.delete(0, bufferArea.length());
 						fieldInKey.add(field);
-						//继续解析下一个；
 						parsePhase = TableParseObjectPhase.WAIT_START;
 					}else{
 						bufferArea.append(c);
@@ -373,9 +349,7 @@ public class TableSqlCodeBuilder {
 					if(c == ' '){
 						parsePhase = TableParseObjectPhase.WAIT_END;
 					}
-					//未发现可以索引方法；
 					if(c == '\n'){
-						//返回上上级；
 						parseObjectStack.pop();
 						parseObjectStack.pop();
 					}
@@ -384,7 +358,6 @@ public class TableSqlCodeBuilder {
 					if(c == ','||c=='\n'){
 						String indexMethod = bufferArea.toString();
 						bufferArea.delete(0, bufferArea.length());
-						//如果是using，清空缓冲区；
 						key.indexMethod = indexMethod.split(" ")[1];
 						parseObjectStack.pop();
 						parseObjectStack.pop();
@@ -407,7 +380,6 @@ public class TableSqlCodeBuilder {
 							parsePhase = TableParseObjectPhase.WAIT_END;
 						}
 						if(attName.equals("AUTO_INCREMENT")){
-							//略过这个属性
 							bufferArea.delete(0, bufferArea.length());
 							parsePhase = TableParseObjectPhase.WAIT_START;
 						}
@@ -443,7 +415,7 @@ public class TableSqlCodeBuilder {
 				}
 				break;
 			}
-			//如果接下来要解析COLUMN_ATT,而当前最后字符是，\n,则向上两级
+			//if next parse COLUMN_ATT, and current char is \n,up 2 level.
 			if(parseObjectStack.get(parseObjectStack.size()-1) == TableParseObject.COLUMN_ATT
 					&&(c==','||c=='\n')){
 				parseObjectStack.pop();
@@ -457,54 +429,25 @@ public class TableSqlCodeBuilder {
 		return table;
 	}
 	/**
-	 * 根据Table构造sql;
+	 * 
+	 * @param table
+	 * @return
 	 */
 	static public String buildSqlByTable(Table table){
-		//生成sql语句
 		StringBuilder stringBuilder = new StringBuilder();
 		stringBuilder.append("CREATE TABLE `"+table.name+"` (\n  ");
-		//遍历字段生成创建字段的 语句；
 		for (int j = 0; j < table.columns.length; j++) {
 			if(j != 0){
 				stringBuilder.append(",\n  ");
 			}
 			Column column = table.columns[j];
-			stringBuilder.append("`");
-			stringBuilder.append(column.name);
-			stringBuilder.append("` ");
-			stringBuilder.append(column.columnType);
-			if(column.charset != null){
-				stringBuilder.append(" CHARACTER SET ");
-				stringBuilder.append(column.charset);
-			}
-			if(column.collate != null){
-				stringBuilder.append(" COLLATE ");
-				stringBuilder.append(column.collate);
-			}
-			//如果nulable == true,default一定等于null
-			//如果nullable==false,default=null代表没有指定值；
-			if(column.nullAble == true){
-				stringBuilder.append(" DEFAULT NULL");
-			}
-			if(column.nullAble == false){
-				stringBuilder.append(" NOT NULL");
-				if(column.defaultValue !=null){
-					stringBuilder.append(" DEFAULT '");
-					stringBuilder.append(column.defaultValue);
-					stringBuilder.append("'");
-				}
-			}
-			if(column.autoIncrement){
-				stringBuilder.append(" AUTO_INCREMENT");
-			}
+			addColumnSql(stringBuilder, column);
 		}
 		if(table.primaryKeys.length>0){
-			//添加主键
 			stringBuilder.append(",\n  ");
 			addPrimaryKeySql(stringBuilder, table.primaryKeys);
 		}
 		
-		//添加key;
 		if(table.keys.length>0){
 			for (int i = 0; i < table.keys.length; i++) {
 				stringBuilder.append(",\n  ");
@@ -526,9 +469,13 @@ public class TableSqlCodeBuilder {
 			stringBuilder.append("'");
 		}
 		stringBuilder.append(";");
-		//返回sql
 		return stringBuilder.toString();
 	}
+	/**
+	 * 
+	 * @param stringBuilder
+	 * @param column
+	 */
 	static public void addColumnSql(StringBuilder stringBuilder,Column column){
 		stringBuilder.append("`");
 		stringBuilder.append(column.name);
@@ -542,8 +489,8 @@ public class TableSqlCodeBuilder {
 			stringBuilder.append(" COLLATE ");
 			stringBuilder.append(column.collate);
 		}
-		//如果nulable == true,default一定等于null
-		//如果nullable==false,default=null代表没有指定值；
+		// if nullable equal true, default value will equal null.
+		// if nullable equal false,default equal null,stand for not point value.
 		if(column.nullAble == true){
 			stringBuilder.append(" DEFAULT NULL");
 		}
@@ -562,6 +509,11 @@ public class TableSqlCodeBuilder {
 			stringBuilder.append("COMMENT '"+column.comment+"'");
 		}
 	}
+	/**
+	 * 
+	 * @param stringBuilder
+	 * @param primaryKeys
+	 */
 	static public void addPrimaryKeySql(StringBuilder stringBuilder,String[] primaryKeys){
 		stringBuilder.append("PRIMARY KEY (");
 		for (int j = 0; j < primaryKeys.length; j++) {
@@ -574,6 +526,11 @@ public class TableSqlCodeBuilder {
 		}
 		stringBuilder.append(")");
 	}
+	/**
+	 * 
+	 * @param stringBuilder
+	 * @param key
+	 */
 	static public void addKeySql(StringBuilder stringBuilder,Key key){
 		stringBuilder.append(key.keyType);
 		stringBuilder.append(" `");
@@ -592,7 +549,10 @@ public class TableSqlCodeBuilder {
 	}
 	
 	/**
-	 * 根据table生成Record代码；
+	 * 
+	 * @param table
+	 * @param packageName
+	 * @return
 	 */
 	static public String generateRecordCodeByTable(Table table,String packageName){
 		StringBuilder stringBuilder = new StringBuilder();
@@ -663,21 +623,21 @@ public class TableSqlCodeBuilder {
 		stringBuilder.append("\t\t}\n");
 		stringBuilder.append("\t\treturn table;\n");
 		stringBuilder.append("\t}\n");
-		//遍历column生成属性
+		//process column
 		for (int i = 0; i < table.columns.length; i++) {
 			Column column = table.columns[i];
 			stringBuilder.append("\t/**\n\t *\n\t */\n");
 			stringBuilder.append("\tpublic ");
-			//tinyint,smallint,mediumint,int,integer均为int;
+			//tinyint,smallint,mediumint,int,integer match int;
 			String dataTypeInJava = "UnknowType";
 			if((column.columnType.indexOf("int")!=-1&&column.columnType.indexOf("bigint")==-1)||column.columnType.indexOf("integer")!=-1){
 				dataTypeInJava = "int";
 			}
-			//bigint为long；
+			//bigint match long；
 			if(column.columnType.indexOf("bigint")!=-1){
 				dataTypeInJava = "long";
 			}
-			//bit为boolean
+			//bit match boolean
 			if(column.columnType.equals("bit")){
 				dataTypeInJava = "boolean";
 			}
@@ -688,7 +648,7 @@ public class TableSqlCodeBuilder {
 			if(column.columnType.equals("float")){
 				dataTypeInJava = "float";
 			}
-			//char,varchar,tinytext,text,longtext,mediumtext,为string;
+			//char,varchar,tinytext,text,longtext,mediumtext,match string;
 			if(column.columnType.indexOf("char")!= -1||column.columnType.indexOf("text")!=-1){
 				dataTypeInJava = "String";
 			}
@@ -700,11 +660,8 @@ public class TableSqlCodeBuilder {
 			stringBuilder.append(" ");
 			stringBuilder.append(getFieldNameByColumnName(column.name));
 
-			//如果有默认值；
-			
 			if(column.defaultValue != null){
 				stringBuilder.append(" = ");
-				//字符串需要增加双引号，其他的不用；
 				if(dataTypeInJava.equals("String")){
 					stringBuilder.append('"');
 				}
@@ -715,7 +672,7 @@ public class TableSqlCodeBuilder {
 			}
 			stringBuilder.append(";\n");
 		}
-		//生成getInsertSql()方法；
+		//general getInsertSql()；
 		stringBuilder.append("\t/**\n\t *\n\t */\n");
 		stringBuilder.append("\tpublic String getInsertSql(){\n");
 		stringBuilder.append("\t\tString sql=\"INSERT INTO `");
@@ -726,7 +683,6 @@ public class TableSqlCodeBuilder {
 			stringBuilder.append("`");
 			stringBuilder.append(column.name);
 			stringBuilder.append("`");
-			//如果不是最后一个
 			if(i<table.columns.length-1){
 				stringBuilder.append(",");
 			}
@@ -737,7 +693,6 @@ public class TableSqlCodeBuilder {
 			stringBuilder.append("'\"+");
 			stringBuilder.append(getFieldNameByColumnName(column.name));
 			stringBuilder.append("+\"'");
-			//如果不是最后一个
 			if(i<table.columns.length-1){
 				stringBuilder.append(",");
 			}
@@ -758,7 +713,6 @@ public class TableSqlCodeBuilder {
 			stringBuilder.append("'\"+");
 			stringBuilder.append(getFieldNameByColumnName(column.name));
 			stringBuilder.append("+\"'");
-			//如果不是最后一个
 			if(i<table.columns.length-1){
 				stringBuilder.append(",");
 			}
@@ -869,6 +823,8 @@ public class TableSqlCodeBuilder {
 	}
 	/**
 	 * 
+	 * @param tableName
+	 * @return
 	 */
 	static public String getClassNameByTableName(String tableName){
 		String className = "";
@@ -882,6 +838,8 @@ public class TableSqlCodeBuilder {
 	}
 	/**
 	 * 
+	 * @param columnName
+	 * @return
 	 */
 	static public String getFieldNameByColumnName(String columnName){
 		String fieldName = "";

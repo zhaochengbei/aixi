@@ -31,9 +31,7 @@ public abstract class Record {
 	 * 
 	 * @return
 	 */
-	public String getDeleteSql(){
-		return null;
-	}
+	abstract public String getDeleteSql();
 	
 	/**
 	 * 
